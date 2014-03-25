@@ -148,15 +148,15 @@ static VOID RedirectHandle(STARTUPINFO *psi, HANDLE in, HANDLE out, HANDLE err)
 
 	psi->dwFlags |= STARTF_USESTDHANDLES;
 
-	if (in != INVALID_HANDLE_VALUE)
+	if (in != 0)
 		psi->hStdInput = in;
-	if (out != INVALID_HANDLE_VALUE)
+	if (out != 0)
 		psi->hStdOutput = out;
-	if (err != INVALID_HANDLE_VALUE)
+	if (err != 0)
 		psi->hStdError = err;
 }
 
-static HANDLE MyOpenFile(PCSTR filename, DWORD open_mode)
+static HANDLE MyOpenFile(PCSTR filename, DWORD dwDesiredAccess, DWORD dwCreationDisposition)
 {
 	SECURITY_ATTRIBUTES sa;
 
@@ -165,10 +165,10 @@ static HANDLE MyOpenFile(PCSTR filename, DWORD open_mode)
 
 	return CreateFile(
 		filename,
-		GENERIC_READ,
+		dwDesiredAccess,
 		FILE_SHARE_READ,
 		&sa,
-		open_mode,
+		dwCreationDisposition,
 		FILE_ATTRIBUTE_NORMAL,
 		NULL);
 }
@@ -223,7 +223,7 @@ bool parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 {
 	LPTSTR argv;
 	int ret;
-	DWORD open;
+	DWORD dwCreationDisposition;
 	HANDLE hin = NULL, hout = NULL, herr = NULL;
 	/* TODO sanity checks */
 	assert (s != 0);
@@ -251,25 +251,21 @@ bool parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 	}
 	else {
 		if (s->in != 0) {
-			hin = MyOpenFile(s->in->string, OPEN_ALWAYS);
+			hin = MyOpenFile(s->in->string, GENERIC_READ, OPEN_ALWAYS);
 		}
 		if (s->out != 0) {
 			if (s->io_flags == IO_OUT_APPEND)
-				open = OPEN_ALWAYS;
+				dwCreationDisposition = OPEN_ALWAYS;
 			else
-				open = CREATE_ALWAYS;
-			hout = MyOpenFile(s->out->string, open);
-			if (open = OPEN_ALWAYS)
-				SetFilePointer(hout, 0, NULL, FILE_END);
+				dwCreationDisposition = CREATE_ALWAYS;
+			hout = MyOpenFile(s->out->string, GENERIC_WRITE, dwCreationDisposition);
 		}
 		if (s->err != 0) {
 			if (s->io_flags == IO_ERR_APPEND)
-				open = OPEN_ALWAYS;
+				dwCreationDisposition = OPEN_ALWAYS;
 			else
-				open = CREATE_ALWAYS;
-			herr = MyOpenFile(s->out->string, open);
-			if (open = OPEN_ALWAYS)
-				SetFilePointer(hout, 0, NULL, FILE_END);
+				dwCreationDisposition = CREATE_ALWAYS;
+			herr = MyOpenFile(s->out->string, GENERIC_WRITE, dwCreationDisposition);
 		}
 		ret = run_simple_command(argv, hin, hout, herr);
 	}
